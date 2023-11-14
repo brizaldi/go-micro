@@ -11,6 +11,9 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+    environment:
+      RABBITMQ_USERNAME: "admin"
+      RABBITMQ_PASSWORD: "password"
   authentication-service:
     build:
       context: ./../authentication-service
@@ -51,6 +54,17 @@ services:
       MAIL_ENCRYPTION: "none"
       FROM_NAME: "John Doe"
       FROM_ADDRESS: "john.doe@example.com"
+  listener-service:
+    build:
+      context: ./../listener-service
+      dockerfile: ./../listener-service/listener-service.dockerfile
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      RABBITMQ_USERNAME: "admin"
+      RABBITMQ_PASSWORD: "password"
   postgres:
     image: "postgres:14"
     ports:
@@ -87,6 +101,9 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "password"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
 
