@@ -31,6 +31,9 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+    environment:
+      DB_USERNAME: "admin"
+      DB_PASSWORD: "password"
   postgres:
     image: "postgres:14"
     ports:

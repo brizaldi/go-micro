@@ -6,6 +6,7 @@ import (
 	"log"
 	"log-service/data"
 	"net/http"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -78,8 +79,8 @@ func connectToMongo() (*mongo.Client, error) {
 	// Create connection options
 	clientOptions := options.Client().ApplyURI(mongoURL)
 	clientOptions.SetAuth(options.Credential{
-		Username: "admin",
-		Password: "password",
+		Username: os.Getenv("DB_USERNAME"),
+		Password: os.Getenv("DB_PASSWORD"),
 	})
 
 	// Connect
