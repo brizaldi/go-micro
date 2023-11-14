@@ -55,6 +55,11 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: "password"
     volumes:
       - mongo-data:/data/db
+  mailhog:
+    image: "mailhog/mailhog:v1.0.1"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
 volumes:
   pg-data:
