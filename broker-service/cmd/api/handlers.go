@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/rpc"
 
 	ps "github.com/brizaldi/go-parse"
 )
@@ -34,6 +35,11 @@ type MailPayload struct {
 	Message string `json:"message"`
 }
 
+type RPCPayload struct {
+	Name string
+	Data string
+}
+
 func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 	var parser ps.Parser
 
@@ -59,7 +65,14 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
+		app.logItem(w, requestPayload.Log)
+	case "log-via-rabbit":
 		app.logEventViaRabbit(w, requestPayload.Log)
+	case "log-via-rpc":
+		app.logItemViaRPC(w, RPCPayload{
+			Name: requestPayload.Log.Name,
+			Data: requestPayload.Log.Data,
+		})
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
@@ -122,42 +135,42 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	parser.WriteJSON(w, http.StatusAccepted, payload)
 }
 
-// func (app *Config) logItem(w http.ResponseWriter, entry LogPayload) {
-// 	var parser ps.Parser
+func (app *Config) logItem(w http.ResponseWriter, entry LogPayload) {
+	var parser ps.Parser
 
-// 	jsonData, _ := json.MarshalIndent(entry, "", "\t")
+	jsonData, _ := json.MarshalIndent(entry, "", "\t")
 
-// 	logServiceURL := "http://logger-service/log"
+	logServiceURL := "http://logger-service/log"
 
-// 	request, err := http.NewRequest("POST", logServiceURL, bytes.NewBuffer(jsonData))
-// 	if err != nil {
-// 		parser.ErrorJSON(w, err)
-// 		return
-// 	}
+	request, err := http.NewRequest("POST", logServiceURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		parser.ErrorJSON(w, err)
+		return
+	}
 
-// 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Type", "application/json")
 
-// 	client := &http.Client{}
+	client := &http.Client{}
 
-// 	response, err := client.Do(request)
-// 	if err != nil {
-// 		parser.ErrorJSON(w, err)
-// 		return
-// 	}
-// 	defer response.Body.Close()
+	response, err := client.Do(request)
+	if err != nil {
+		parser.ErrorJSON(w, err)
+		return
+	}
+	defer response.Body.Close()
 
-// 	if response.StatusCode != http.StatusAccepted {
-// 		parser.ErrorJSON(w, err)
-// 		return
-// 	}
+	if response.StatusCode != http.StatusAccepted {
+		parser.ErrorJSON(w, err)
+		return
+	}
 
-// 	payload := ps.JSONResponse{
-// 		Error:   false,
-// 		Message: "Logged",
-// 	}
+	payload := ps.JSONResponse{
+		Error:   false,
+		Message: "Logged",
+	}
 
-// 	parser.WriteJSON(w, http.StatusAccepted, payload)
-// }
+	parser.WriteJSON(w, http.StatusAccepted, payload)
+}
 
 func (app *Config) sendMail(w http.ResponseWriter, msg MailPayload) {
 	var parser ps.Parser
@@ -234,4 +247,28 @@ func (app *Config) pushToQueue(name, msg string) error {
 	}
 
 	return nil
+}
+
+func (app *Config) logItemViaRPC(w http.ResponseWriter, r RPCPayload) {
+	var parser ps.Parser
+
+	client, err := rpc.Dial("tcp", "logger-service:5001")
+	if err != nil {
+		parser.ErrorJSON(w, err)
+		return
+	}
+
+	var result string
+	err = client.Call("RPCServer.LogInfo", r, &result)
+	if err != nil {
+		parser.ErrorJSON(w, err)
+		return
+	}
+
+	payload := ps.JSONResponse{
+		Error:   false,
+		Message: result,
+	}
+
+	parser.WriteJSON(w, http.StatusAccepted, payload)
 }
